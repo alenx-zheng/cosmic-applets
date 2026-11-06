@@ -2,8 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use cosmic::{
-    Apply, Element, Task, app, applet::{cosmic_panel_config::PanelAnchor, menu_button, padded_control}, cctk::sctk::reexports::calloop, cosmic_theme::Spacing, iced::{Alignment, Length, Rectangle, Subscription, futures::{SinkExt, StreamExt, channel::mpsc}, platform_specific::shell::wayland::commands::popup::{destroy_popup, get_popup}, stream, widget::{Column, column, row, rule}, window}, surface, theme, widget::{
-        Button, Grid, Id, Widget, autosize, button, container, divider, grid, icon, rectangle_tracker::*, space, text,
+    Apply, Element, Task, app,
+    applet::{cosmic_panel_config::PanelAnchor, menu_button, padded_control},
+    cctk::sctk::reexports::calloop,
+    cosmic_theme::Spacing,
+    iced::{
+        Alignment, Length, Rectangle, Subscription,
+        futures::{SinkExt, StreamExt, channel::mpsc},
+        platform_specific::shell::wayland::commands::popup::{destroy_popup, get_popup},
+        stream,
+        widget::{Column, column, row, rule},
+        window,
+    },
+    surface, theme,
+    widget::{
+        Button, Grid, Id, Widget, autosize, button, container, divider, grid, icon,
+        rectangle_tracker::*, space, text,
     },
 };
 use jiff::{
@@ -13,8 +27,8 @@ use jiff::{
     tz::TimeZone,
 };
 use logind_zbus::manager::ManagerProxy;
-use std::{hash::Hash, println};
 use std::sync::LazyLock;
+use std::{hash::Hash, println};
 use timedate_zbus::TimeDateProxy;
 use tokio::{sync::watch, time};
 
@@ -65,9 +79,9 @@ fn get_system_locale() -> Locale {
     Locale::try_from_str("en-US").expect("Failed to parse fallback locale 'en-US'")
 }
 const LUNAR_DAY_CN: [&str; 30] = [
-    "初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十",
-    "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
-    "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十",
+    "初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十", "十一", "十二",
+    "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十", "廿一", "廿二", "廿三", "廿四",
+    "廿五", "廿六", "廿七", "廿八", "廿九", "三十",
 ];
 
 /// 输入 tyme4rs LunarDay，输出形如：正月十五、闰二月廿一
@@ -100,23 +114,23 @@ pub fn format_lunar(lunar: &LunarDay) -> String {
     };
 
     let day = lunar.get_day() as usize;
-    let res:String;
+    let res: String;
     if day == 1 {
         // 初一：显示月份（闰月带上闰）
         if is_leap {
-            res=format!("闰{}", month_str);
+            res = format!("闰{}", month_str);
         } else {
-            res=month_str.to_string();
+            res = month_str.to_string();
         }
     } else {
         // 其他日子只显示日
         if (1..=30).contains(&day) {
-            res=LUNAR_DAY_CN[day - 1].to_string();
+            res = LUNAR_DAY_CN[day - 1].to_string();
         } else {
-            res=String::new();
+            res = String::new();
         }
     }
-     return res;
+    return res;
 }
 pub struct Window {
     core: cosmic::app::Core,
@@ -212,16 +226,29 @@ impl Window {
             let is_day = date == self.date_selected;
             let is_today = date == self.date_today;
 
-            let cn_calendar_day:LunarDay = SolarDay::from_ymd(date.year() as isize,
-               date.month() as usize,date.day() as usize).get_lunar_day();
-
-            // lunar_month_to_chinese(cn_calendar_day.get_month().abs(),cn_calendar_day.get_month()<0)
-            calendar = calendar.push(date_button(date.day(), is_month, is_day, is_today,format_lunar(&cn_calendar_day).as_str()));
+            let cn_calendar_day: LunarDay = SolarDay::from_ymd(
+                date.year() as isize,
+                date.month() as usize,
+                date.day() as usize,
+            )
+            .get_lunar_day();
+            println!("{}", self.config.show_cn_calendar);
+            let lunar_str = if self.config.show_cn_calendar {
+                format_lunar(&cn_calendar_day)
+            } else {
+                String::new()
+            };
+            calendar = calendar.push(date_button(
+                date.day(),
+                is_month,
+                is_day,
+                is_today,
+                &lunar_str,
+            ));
         }
 
         calendar
     }
-
 
     /// Format with strftime if non-empty and ignore errors.
     ///
@@ -770,9 +797,15 @@ impl cosmic::Application for Window {
         .size(18);
 
         let cn_calendar_date = text(
-            SolarDay::from_ymd(datetime.date.year().extended_year() as isize,
-               datetime.date.month().number() as usize,datetime.date.day_of_month().0 as usize).get_lunar_day().to_string()
-        ).size(18);
+            SolarDay::from_ymd(
+                datetime.date.year().extended_year() as isize,
+                datetime.date.month().number() as usize,
+                datetime.date.day_of_month().0 as usize,
+            )
+            .get_lunar_day()
+            .to_string(),
+        )
+        .size(18);
         let day_of_week = text::body(
             DateTimeFormatter::try_new(prefs, fieldsets::E::long())
                 .unwrap()
@@ -793,14 +826,15 @@ impl cosmic::Application for Window {
         let calendar = self.calendar_grid();
 
         let content_list = column![
-            row![//日历头部内容
-                column![date, day_of_week,cn_calendar_date],
+            row![
+                //日历头部内容
+                column![date, day_of_week, cn_calendar_date],
                 space::horizontal().width(Length::Fill),
                 month_controls,
             ]
             .align_y(Alignment::Center)
             .padding([12, 20]),
-            calendar.padding([0, 12].into()),//日历实际渲染
+            calendar.padding([0, 12].into()), //日历实际渲染
             padded_control(divider::horizontal::default()).padding([space_xxs, space_s]),
             menu_button(text::body(fl!("datetime-settings")))
                 .on_press(Message::OpenDateTimeSettings),
@@ -818,7 +852,13 @@ impl cosmic::Application for Window {
     }
 }
 
-fn date_button(day: i8, is_month: bool, is_day: bool, is_today: bool , cn_calendar:&str) -> Button<'static, Message> {
+fn date_button(
+    day: i8,
+    is_month: bool,
+    is_day: bool,
+    is_today: bool,
+    cn_calendar: &str,
+) -> Button<'static, Message> {
     let style = if is_day {
         button::ButtonClass::Suggested
     } else if is_today {

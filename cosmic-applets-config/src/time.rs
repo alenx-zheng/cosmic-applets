@@ -8,6 +8,7 @@ use cosmic_config::{self, CosmicConfigEntry, cosmic_config_derive::CosmicConfigE
 pub struct TimeAppletConfig {
     pub military_time: bool,
     pub show_seconds: bool,
+    pub show_cn_calendar: bool,
     pub first_day_of_week: u8,
     pub show_date_in_top_panel: bool,
     pub show_weekday: bool,
@@ -20,6 +21,7 @@ impl Default for TimeAppletConfig {
         Self {
             military_time: false,
             show_seconds: false,
+            show_cn_calendar: false,
             first_day_of_week: 6,
             show_date_in_top_panel: true,
             show_weekday: false,
